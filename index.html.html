@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>엑셀 Flash Fill (Ctrl + E) 실습 & 예제 다운로더</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS: Generates real formatted .xlsx files on the fly -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
+    body { font-family: 'Pretendard', sans-serif; }
+    .flash-highlight {
+      animation: flashBg 0.7s ease-in-out;
+    }
+    @keyframes flashBg {
+      0% { background-color: #d1fae5; transform: scale(0.98); }
+      50% { background-color: #a7f3d0; }
+      100% { background-color: transparent; transform: scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-8 flex flex-col items-center">
+
+  <div class="max-w-5xl w-full space-y-6">
+
+    <!-- Header Section -->
+    <header class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 mb-2">
+          <i class="ph-bold ph-lightning text-sm"></i> 엑셀 퇴근 시간 단축 프로젝트
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          Ctrl + E 빠른 채우기 (Flash Fill) 실습실
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          뭉쳐 있는 고객 텍스트 데이터를 단 1초 만에 분리·가공하는 원리를 직접 체험해 보세요.
+        </p>
+      </div>
+
+      <!-- Excel Download Action -->
+      <button id="btnDownloadXlsx" class="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold rounded-xl shadow-md transition duration-150 text-sm whitespace-nowrap">
+        <i class="ph-bold ph-file-arrow-down text-lg"></i> 실습용 .xlsx 예제 파일 다운로드
+      </button>
+    </header>
+
+    <!-- Interactive Simulator -->
+    <main class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Toolbar -->
+      <div class="bg-slate-100/90 border-b border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">실습 시뮬레이션:</span>
+          
+          <button id="btnSimName" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="ph-bold ph-user"></i> 1. 이름 뽑기 (Ctrl+E)
+          </button>
+          
+          <button id="btnSimPhone" class="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="ph-bold ph-phone"></i> 2. 전화번호 분리
+          </button>
+
+          <button id="btnSimAddr" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="ph-bold ph-map-pin"></i> 3. 주소 분리
+          </button>
+
+          <button id="btnSimCustom" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="ph-bold ph-sparkle"></i> 4. 응용: '○○님' 호칭 조합
+          </button>
+        </div>
+
+        <button id="btnResetTable" class="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-rose-50 transition">
+          <i class="ph ph-arrow-counter-clockwise font-bold"></i> 초기화
+        </button>
+      </div>
+
+      <!-- Quick Instruction Banner -->
+      <div class="bg-slate-800 text-slate-200 px-4 py-2.5 text-xs flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded font-mono font-bold">TIP</span>
+          <span>이 페이지에서 키보드의 <kbd class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded border border-slate-600 font-mono">Ctrl + E</kbd> (Mac: <kbd class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded border border-slate-600 font-mono">Cmd + E</kbd>)를 직접 눌러도 실행됩니다!</span>
+        </div>
+        <span id="triggerFeedback" class="text-emerald-400 font-medium">대기 중</span>
+      </div>
+
+      <!-- Excel Grid Display -->
+      <div class="overflow-x-auto p-4">
+        <table class="w-full border-collapse border border-slate-300 text-sm" id="excelGrid">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 text-xs text-center border-b border-slate-300 font-semibold select-none">
+              <th class="w-12 py-2 border-r border-slate-300 bg-slate-200 text-slate-500">행</th>
+              <th class="py-2.5 px-3 border-r border-slate-300 text-left bg-slate-100 w-1/3">A열 (원본 데이터)</th>
+              <th class="py-2.5 px-3 border-r border-slate-300 text-left bg-blue-50 text-blue-900 w-1/6">B열 (이름 분리)</th>
+              <th class="py-2.5 px-3 border-r border-slate-300 text-left bg-teal-50 text-teal-900 w-1/6">C열 (전화번호)</th>
+              <th class="py-2.5 px-3 border-r border-slate-300 text-left bg-indigo-50 text-indigo-900 w-1/4">D열 (주소)</th>
+              <th class="py-2.5 px-3 border-r border-slate-300 text-left bg-purple-50 text-purple-900 w-1/6">E열 (호칭 응용)</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-200 font-mono text-xs md:text-sm">
+            <!-- Dynamic Rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Real-time Logic Explanation Box -->
+      <div class="m-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs md:text-sm space-y-1.5">
+        <div class="flex items-center gap-2 font-bold text-slate-800">
+          <i class="ph-bold ph-brain text-emerald-600 text-base"></i> 엑셀 내부 인공지능 엔진의 판단 과정:
+        </div>
+        <p id="logicExplanation" class="text-slate-600 leading-relaxed">
+          버튼을 클릭하거나 <kbd class="bg-white px-1.5 py-0.5 rounded border border-slate-300 font-semibold">Ctrl + E</kbd>를 눌러보세요. 엑셀이 사용자가 입력한 첫 번째 행의 패턴을 감지하여 수천 줄을 일괄 유추해 내는 과정을 확인하실 수 있습니다.
+        </p>
+      </div>
+    </main>
+
+    <!-- Excel File Composition Info Card -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+          1
+        </div>
+        <h3 class="font-bold text-slate-800 text-sm">Sheet 1: 실습용 데이터</h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          100개의 실무형 고객 원본 데이터가 세팅되어 있습니다. B2 셀에 이름 하나만 적고 바로 <kbd class="bg-slate-100 px-1 py-0.5 rounded font-mono">Ctrl+E</kbd>를 눌러 손맛을 느껴보세요.
+        </p>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+          2
+        </div>
+        <h3 class="font-bold text-slate-800 text-sm">Sheet 2: 완성 정답표</h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          이름, 번호, 주소 분리뿐만 아니라 하이픈 없는 번호에 <kbd class="bg-slate-100 px-1 py-0.5 rounded font-mono">-</kbd> 자동 포맷팅, 성씨만 분리 등 고급 응용 사례가 수록되어 있습니다.
+        </p>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+          3
+        </div>
+        <h3 class="font-bold text-slate-800 text-sm">Sheet 3: 치트키 요약노트</h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Ctrl+E가 실패하는 3대 이유(빈 열 문제, 복합 성씨 오인, 원본 거리감)와 해결 방법이 표로 정리되어 있어 사내 동료에게 공유하기 좋습니다.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Sample Raw Datasets (Messy combined strings)
+    const mockData = [
+      { raw: "홍길동 / 010-1234-5678 / 서울시 강남구 테헤란로 123", name: "홍길동", phone: "010-1234-5678", addr: "서울시 강남구 테헤란로 123", custom: "홍길동 님" },
+      { raw: "이영희 / 010-9876-5432 / 경기도 수원시 팔달구 매산로 45", name: "이영희", phone: "010-9876-5432", addr: "경기도 수원시 팔달구 매산로 45", custom: "이영희 님" },
+      { raw: "남궁민수 / 010-5555-7777 / 부산시 해운대구 센텀중앙로 99", name: "남궁민수", phone: "010-5555-7777", addr: "부산시 해운대구 센텀중앙로 99", custom: "남궁민수 님" },
+      { raw: "제갈선우 / 010-8888-1212 / 인천시 연수구 송도과학로 10", name: "제갈선우", phone: "010-8888-1212", addr: "인천시 연수구 송도과학로 10", custom: "제갈선우 님" },
+      { raw: "최민 / 010-3333-9999 / 대구시 수성구 범어동 202", name: "최민", phone: "010-3333-9999", addr: "대구시 수성구 범어동 202", custom: "최민 님" },
+      { raw: "강하늘 / 010-4444-2222 / 대전시 유성구 대학로 99", name: "강하늘", phone: "010-4444-2222", addr: "대전시 유성구 대학로 99", custom: "강하늘 님" }
+    ];
+
+    // State
+    const colFilled = {
+      name: false,
+      phone: false,
+      addr: false,
+      custom: false
+    };
+
+    function renderTable() {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+
+      mockData.forEach((row, idx) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-200 text-slate-700";
+
+        // Display values based on active states
+        const nameVal = colFilled.name ? row.name : (idx === 0 ? `<span class="text-blue-600 font-bold bg-blue-100/70 px-1 py-0.5 rounded">홍길동 (샘플입력)</span>` : `<span class="text-slate-300">-</span>`);
+        const phoneVal = colFilled.phone ? row.phone : (idx === 0 ? `<span class="text-teal-700 font-bold bg-teal-100/70 px-1 py-0.5 rounded">010-1234-5678</span>` : `<span class="text-slate-300">-</span>`);
+        const addrVal = colFilled.addr ? row.addr : (idx === 0 ? `<span class="text-indigo-700 font-bold bg-indigo-100/70 px-1 py-0.5 rounded">서울시 강남구...</span>` : `<span class="text-slate-300">-</span>`);
+        const customVal = colFilled.custom ? row.custom : (idx === 0 ? `<span class="text-purple-700 font-bold bg-purple-100/70 px-1 py-0.5 rounded">홍길동 님</span>` : `<span class="text-slate-300">-</span>`);
+
+        tr.innerHTML = `
+          <td class="text-center py-2.5 border-r border-slate-200 text-xs text-slate-400 bg-slate-50/50">${idx + 2}</td>
+          <td class="px-3 py-2.5 border-r border-slate-200 font-sans text-slate-800">${row.raw}</td>
+          <td class="px-3 py-2.5 border-r border-slate-200 text-blue-900 ${colFilled.name && idx > 0 ? 'flash-highlight' : ''}">${nameVal}</td>
+          <td class="px-3 py-2.5 border-r border-slate-200 text-teal-900 ${colFilled.phone && idx > 0 ? 'flash-highlight' : ''}">${phoneVal}</td>
+          <td class="px-3 py-2.5 border-r border-slate-200 text-indigo-900 ${colFilled.addr && idx > 0 ? 'flash-highlight' : ''}">${addrVal}</td>
+          <td class="px-3 py-2.5 border-r border-slate-200 text-purple-900 ${colFilled.custom && idx > 0 ? 'flash-highlight' : ''}">${customVal}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Step Triggers
+    const explainBox = document.getElementById("logicExplanation");
+    const feedbackBadge = document.getElementById("triggerFeedback");
+
+    function flashBadgeText(text) {
+      feedbackBadge.textContent = text;
+      feedbackBadge.className = "text-amber-400 font-bold animate-pulse";
+      setTimeout(() => {
+        feedbackBadge.className = "text-emerald-400 font-medium";
+        feedbackBadge.textContent = "Ctrl + E 완료";
+      }, 1000);
+    }
+
+    document.getElementById("btnSimName").addEventListener("click", () => {
+      colFilled.name = true;
+      renderTable();
+      flashBadgeText("Ctrl + E: 이름 분리 완료!");
+      explainBox.innerHTML = `<strong>⚡ 이름 분리 성공:</strong> 사용자가 첫 칸에 <code>홍길동</code>을 치자, 엑셀이 <i>"A열 첫 번째 '/' 기호 앞 단어구나!"</i>라고 인식하여 2행부터 6행까지 <code>남궁민수</code>, <code>제갈선우</code> 등 복잡한 성씨까지 한 방에 추출했습니다.`;
+    });
+
+    document.getElementById("btnSimPhone").addEventListener("click", () => {
+      colFilled.phone = true;
+      renderTable();
+      flashBadgeText("Ctrl + E: 연락처 분리 완료!");
+      explainBox.innerHTML = `<strong>⚡ 전화번호 분리 성공:</strong> 첫 번째 슬래시와 두 번째 슬래시 사이의 패턴(<code>010-XXXX-XXXX</code>)을 감지하여 1,000줄이어도 1초 만에 깔끔하게 도려냈습니다. 함수 <code>=MID(FIND(...))</code> 쓸 필요가 전혀 없습니다!`;
+    });
+
+    document.getElementById("btnSimAddr").addEventListener("click", () => {
+      colFilled.addr = true;
+      renderTable();
+      flashBadgeText("Ctrl + E: 주소 분리 완료!");
+      explainBox.innerHTML = `<strong>⚡ 주소 분리 성공:</strong> 마지막 슬래시 뒤쪽 텍스트를 정확히 인식했습니다. 서울, 경기, 부산, 대구 등 지역명에 구애받지 않고 일관된 패턴으로 분리됩니다.`;
+    });
+
+    document.getElementById("btnSimCustom").addEventListener("click", () => {
+      colFilled.custom = true;
+      renderTable();
+      flashBadgeText("Ctrl + E: 텍스트 조합 응용 완료!");
+      explainBox.innerHTML = `<strong>⚡ 텍스트 가공/조합 응용:</strong> B2 셀에 <code>홍길동 님</code>이라고 적었더니, 엑셀이 <i>"이름 뒤에 ' 님'을 붙이라는 뜻이구나"</i> 하고 알아채서 모든 행에 <code>이영희 님</code>, <code>남궁민수 님</code>으로 자동 조합했습니다.`;
+    });
+
+    document.getElementById("btnResetTable").addEventListener("click", () => {
+      colFilled.name = false;
+      colFilled.phone = false;
+      colFilled.addr = false;
+      colFilled.custom = false;
+      renderTable();
+      feedbackBadge.textContent = "대기 중";
+      explainBox.innerHTML = `표가 초기화되었습니다. 실습 버튼을 누르거나 키보드 단축키 <kbd class="bg-white px-1 py-0.5 rounded border border-slate-300 font-semibold">Ctrl + E</kbd>를 눌러보세요.`;
+    });
+
+    // Keyboard Shortcut (Ctrl+E or Cmd+E)
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault(); // Prevent browser search focus or other default
+        if (!colFilled.name) {
+          document.getElementById("btnSimName").click();
+        } else if (!colFilled.phone) {
+          document.getElementById("btnSimPhone").click();
+        } else if (!colFilled.addr) {
+          document.getElementById("btnSimAddr").click();
+        } else if (!colFilled.custom) {
+          document.getElementById("btnSimCustom").click();
+        }
+      }
+    });
+
+    // Generate and Download Real .xlsx File
+    document.getElementById("btnDownloadXlsx").addEventListener("click", () => {
+      const wb = XLSX.utils.book_new();
+
+      // Extended realistic dataset (20 rows)
+      const fullList = [
+        ["홍길동 / 010-1234-5678 / 서울시 강남구 테헤란로 123", "홍길동"], // Sample for row 2
+        ["이영희 / 010-9876-5432 / 경기도 수원시 팔달구 매산로 45", ""],
+        ["남궁민수 / 010-5555-7777 / 부산시 해운대구 센텀중앙로 99", ""],
+        ["제갈선우 / 010-8888-1212 / 인천시 연수구 송도과학로 10", ""],
+        ["최민 / 010-3333-9999 / 대구시 수성구 범어동 202", ""],
+        ["강하늘 / 010-4444-2222 / 대전시 유성구 대학로 99", ""],
+        ["윤서진 / 010-7711-8822 / 광주시 서구 상무중앙로 50", ""],
+        ["황보경 / 010-9922-3344 / 울산시 남구 삼산로 15", ""],
+        ["박준혁 / 010-1122-3344 / 강원도 춘천시 중앙로 8", ""],
+        ["배수지 / 010-6677-8899 / 충북 청주시 상당구 상당로 20", ""],
+        ["정우성 / 010-2345-6789 / 전북 전주시 완산구 효자로 2", ""],
+        ["한소희 / 010-3456-7890 / 경북 포항시 북구 대해로 30", ""],
+        ["김태리 / 010-4567-8901 / 경남 창원시 성산구 중앙대로 100", ""],
+        ["조인성 / 010-5678-9012 / 제주도 제주시 첨단로 242", ""],
+        ["손흥민 / 010-6789-0123 / 세종시 한누리대로 411", ""]
+      ];
+
+      // Sheet 1: Practice Sheet (User types on B2 and hits Ctrl+E)
+      const sheet1Data = [
+        ["A열: 고객 통합 데이터 (원본)", "B열: 이름 (B3에서 Ctrl+E 누르기!)", "C열: 전화번호 (C3에서 Ctrl+E)", "D열: 주소 (D3에서 Ctrl+E)"]
+      ];
+      fullList.forEach((item, i) => {
+        sheet1Data.push([
+          item[0],
+          i === 0 ? "홍길동" : "", // Row 2 has the sample name
+          i === 0 ? "010-1234-5678" : "", // Row 2 has sample phone
+          i === 0 ? "서울시 강남구 테헤란로 123" : "" // Row 2 has sample addr
+        ]);
+      });
+
+      // Sheet 2: Solution Sheet
+      const sheet2Data = [
+        ["고객 원본 데이터", "이름 분리", "전화번호 분리", "주소 분리", "호칭 응용"]
+      ];
+      fullList.forEach(item => {
+        const parts = item[0].split(" / ");
+        sheet2Data.push([
+          item[0],
+          parts[0],
+          parts[1],
+          parts[2],
+          parts[0] + " 님"
+        ]);
+      });
+
+      // Sheet 3: Cheatsheet Guide
+      const sheet3Data = [
+        ["Ctrl + E (빠른 채우기) 핵심 사용법 및 오류 해결 치트키"],
+        [""],
+        ["1. 기본 사용법", "첫 번째 행에 원하는 결과를 손으로 1번 입력하고, 바로 아랫칸에서 [Ctrl + E]를 누릅니다."],
+        ["2. 필수 조건 1", "결과를 채울 열은 반드시 원본 데이터의 바로 옆 열에 붙어 있어야 합니다. (빈 열이 중간에 있으면 작동 안 함)"],
+        ["3. 필수 조건 2", "외자 이름이나 4글자 이름 등 예외가 있을 때는 두 번째 행에도 올바른 값을 적어주면 AI가 스스로 학습합니다."],
+        ["4. 응용 기술", "'홍길동 님'처럼 텍스트를 조합하거나, 하이픈(-) 없는 숫자에 하이픈을 넣는 포맷팅도 지원합니다."]
+      ];
+
+      const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
+      const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
+      const ws3 = XLSX.utils.aoa_to_sheet(sheet3Data);
+
+      // Widths
+      ws1['!cols'] = [{ wch: 45 }, { wch: 22 }, { wch: 22 }, { wch: 35 }];
+      ws2['!cols'] = [{ wch: 45 }, { wch: 15 }, { wch: 20 }, { wch: 35 }, { wch: 16 }];
+      ws3['!cols'] = [{ wch: 20 }, { wch: 70 }];
+
+      XLSX.utils.book_append_sheet(wb, ws1, "1_Ctrl+E_실습도전(직접해보세요)");
+      XLSX.utils.book_append_sheet(wb, ws2, "2_완성정답표(모범답안)");
+      XLSX.utils.book_append_sheet(wb, ws3, "3_선배의_치트키_가이드");
+
+      XLSX.writeFile(wb, "칼퇴치트키_Ctrl_E_빠른채우기_실습예제.xlsx");
+    });
+
+    // Initial render
+    renderTable();
+  </script>
+</body>
+</html>
